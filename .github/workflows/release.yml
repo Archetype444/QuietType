@@ -1,0 +1,90 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish version 1.0.0 after all checks pass
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: quiettype-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  core:
+    name: Offline engine tests (Linux)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: '10.0.x'
+      - run: python3 scripts/download-assets.py
+      - run: dotnet run --project tests/QuietType.Tests -c Release -- .
+  windows:
+    name: Windows integration and installer
+    runs-on: windows-2025
+    needs: core
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build self-contained app and test neural inference
+        shell: pwsh
+        run: ./scripts/build.ps1
+      - name: Check Windows editing, undo, exclusions and passwords
+        shell: pwsh
+        run: |
+          $process = Start-Process artifacts/app/QuietType.exe -ArgumentList '--self-test', 'artifacts/windows-self-test.json' -Wait -PassThru
+          Get-Content artifacts/windows-self-test.json
+          if ($process.ExitCode -ne 0) { throw 'Windows integration tests failed' }
+      - name: Build per-user installer
+        shell: pwsh
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) { throw 'Official Inno Setup compiler not installed on runner' }
+          & $compiler installer/QuietType.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed' }
+      - name: Check installer and uninstaller
+        shell: pwsh
+        run: |
+          $destination = Join-Path $env:RUNNER_TEMP 'QuietTypeInstallTest'
+          $setup = Start-Process artifacts/QuietType-1.0.0-Setup-x64.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$destination" -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw 'Installation failed' }
+          if (-not (Test-Path "$destination/assets/model/model.onnx")) { throw 'Bundled model missing' }
+          $app = Start-Process "$destination/QuietType.exe" -ArgumentList '--self-test', 'artifacts/installed-self-test.json' -Wait -PassThru
+          if ($app.ExitCode -ne 0) { Get-Content artifacts/installed-self-test.json; throw 'Installed app tests failed' }
+          $uninstall = Start-Process "$destination/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          if ($uninstall.ExitCode -ne 0 -or (Test-Path "$destination/QuietType.exe")) { throw 'Uninstall failed' }
+          if (Get-ItemPropertyValue 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' QuietType -ErrorAction SilentlyContinue) { throw 'Startup entry left after uninstall' }
+      - name: Package portable copy and checksums
+        shell: pwsh
+        run: |
+          Compress-Archive artifacts/app/* artifacts/QuietType-1.0.0-Portable-x64.zip
+          $files = @('artifacts/QuietType-1.0.0-Setup-x64.exe', 'artifacts/QuietType-1.0.0-Portable-x64.zip')
+          $lines = $files | ForEach-Object { $h = Get-FileHash $_ -Algorithm SHA256; "$($h.Hash.ToLowerInvariant())  $(Split-Path $_ -Leaf)" }
+          $lines | Set-Content artifacts/SHA256SUMS.txt -Encoding ascii
+      - name: Preserve release files and test evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: QuietType-1.0.0-Windows-x64
+          path: |
+            artifacts/QuietType-1.0.0-Setup-x64.exe
+            artifacts/QuietType-1.0.0-Portable-x64.zip
+            artifacts/SHA256SUMS.txt
+            artifacts/*self-test.json
+          if-no-files-found: error
+      - name: Publish v1.0.0
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.0.0 artifacts/QuietType-1.0.0-Setup-x64.exe artifacts/QuietType-1.0.0-Portable-x64.zip artifacts/SHA256SUMS.txt artifacts/windows-self-test.json artifacts/installed-self-test.json --target $env:GITHUB_SHA --title 'QuietType 1.0.0' --notes-file docs/RELEASE-NOTES.md --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }

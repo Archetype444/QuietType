@@ -1,0 +1,42 @@
+QuietType 1.0 - private autocorrect for Windows 11
+
+Run the installer. No administrator account, AI account, Python installation,
+model download or internet connection is needed after downloading the installer.
+
+QuietType opens Settings the first time. Click Close when you're ready.
+The green Q stays in the Windows notification area (system tray). It may be
+inside the hidden-icons popup opened by the ^ arrow beside the clock.
+Right-click Q for Pause, Settings, Undo or Quit. Double-click Q for Settings.
+
+Type an ordinary English sentence in a supported text box. After a space or
+punctuation and a brief pause, clear typos are corrected. Uncertain words are
+left alone. Closing Settings leaves QuietType running quietly.
+
+Ctrl+Alt+P: pause or resume.
+Ctrl+Alt+Z: undo the last correction, within 20 seconds and before changing
+text or moving the cursor. That spelling is protected for this session.
+If a shortcut is already used by another app, the tray menu still works.
+
+Settings lets you change the delay, disable AI, exclude apps, protect words,
+and disable automatic startup. Click Save settings to apply changes.
+Real-word mix-ups are experimental and disabled by default.
+
+No typing history is saved. No text is transmitted. No clipboard access.
+Your explicit settings and personal words are stored in:
+%LOCALAPPDATA%\QuietType
+Uninstall from Windows Settings > Apps > Installed apps > QuietType.
+Your settings are retained so reinstalling does not lose your preferences;
+you can delete the folder above after uninstalling to remove them.
+
+English only in 1.0. Some custom editors, games, elevated apps and text boxes
+do not expose compatible accessibility information and are skipped.
+Terminals, developer tools and common password managers are excluded by default.
+Passwords, selected text, read-only text, addresses and code-like words are skipped.
+
+QuietType is not a guarantee about Windows or other apps' own data handling.
+
+This community build is unsigned. Windows may show an unknown-publisher or
+SmartScreen notice because it has no paid signing certificate or reputation.
+The release includes SHA256SUMS.txt; source and build steps are public.
+
+Source and help: https://github.com/Archetype444/QuietType

@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+artifacts/
+.vs/
+*.user
+assets/model/*
+!assets/model/LICENSE*
+assets/dictionary/frequency.txt
