@@ -28,7 +28,7 @@ internal sealed class CorrectionService : IDisposable
         thread.Start();
     }
     public void Configure(Settings next) { Volatile.Write(ref settings, next); input.Invalidate(); }
-    public void Undo(bool restoreWindow) { restoreUndoWindow = restoreWindow; undoRequested = true; }
+    public void Undo(bool restoreWindow) { restoreUndoWindow = restoreWindow; undoRequested = true; input.Activity.Set(); }
     private void SetStatus(string status) { if (Status == status) return; Status = status; StatusChanged?.Invoke(status); }
     private void Loop()
     {
@@ -37,9 +37,11 @@ internal sealed class CorrectionService : IDisposable
             var lexicon = new Lexicon(Path.Combine(assetDirectory, "dictionary", "frequency.txt"));
             var engine = new CorrectionEngine(lexicon);
             SetStatus("Ready · offline");
+            WaitHandle[] wake = [stop.Token.WaitHandle, input.Activity];
             while (!stop.IsCancellationRequested)
             {
-                stop.Token.WaitHandle.WaitOne(60);
+                int timeout = input.BoundaryRevision != 0 && input.BoundaryRevision != lastHandled ? 20 : 1000;
+                WaitHandle.WaitAny(wake, timeout);
                 if (stop.IsCancellationRequested) break;
                 var current = Volatile.Read(ref settings);
                 if (!ReferenceEquals(current, appliedSettings))

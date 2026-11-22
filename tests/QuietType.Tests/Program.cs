@@ -26,7 +26,7 @@ Equal("answer",engine.Suggest("Please asnwer ","",settings,null)?.Replacement,"C
 Equal("The",engine.Suggest("Teh ","",settings,null)?.Replacement,"Capitalization");
 Check(engine.Suggest("Please asnwer ","",settings with {PersonalWords=["asnwer"]},null) is null,"Personal dictionary");
 Check(engine.Suggest("I came form ","London",settings,null) is null,"Real words protected by default");
-Equal(150,(settings with {IdleDelayMs=0}).Normalize().IdleDelayMs,"Settings lower bound");
+Equal(50,(settings with {IdleDelayMs=0}).Normalize().IdleDelayMs,"Settings lower bound");
 Equal("code",(settings with {ExcludedApps=[" Code.EXE "]}).Normalize().ExcludedApps[0],"Process normalization");
 Check(lexicon.Candidates("speling").Any(c=>c.Word=="spelling"),"Candidate recall");
 var tokenizer = new WordPiece(Path.Combine(root,"assets/model/vocab.txt"));

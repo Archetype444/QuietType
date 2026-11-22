@@ -7,12 +7,12 @@ public sealed record Settings
     public bool UseAi { get; init; } = true;
     public bool CorrectRealWords { get; init; } = false;
     public bool StartWithWindows { get; init; } = true;
-    public int IdleDelayMs { get; init; } = 150;
+    public int IdleDelayMs { get; init; } = 60;
     public string[] ExcludedApps { get; init; } = ["1password", "bitwarden", "keepass", "keepassxc", "credentialuibroker", "consent", "mstsc", "windowsterminal", "cmd", "powershell", "pwsh", "conhost", "code", "devenv", "rider64", "idea64", "pycharm64", "steam", "parsecd", "anydesk"];
     public string[] PersonalWords { get; init; } = [];
     public Settings Normalize() => this with
     {
-        IdleDelayMs = Math.Clamp(IdleDelayMs, 150, 1500),
+        IdleDelayMs = Math.Clamp(IdleDelayMs, 50, 1500),
         ExcludedApps = Clean(ExcludedApps, true),
         PersonalWords = Clean(PersonalWords, false)
     };

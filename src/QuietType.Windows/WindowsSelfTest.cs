@@ -5,9 +5,10 @@ namespace QuietType.Windows;
 
 internal static class WindowsSelfTest
 {
-    private static void SendFixtureSpace()
+    private static void SendFixtureSpace() => SendFixtureKey(0x20);
+    private static void SendFixtureKey(ushort key)
     {
-        Native.INPUT[] inputs = [new() { Type=1, Data=new() { Keyboard=new() { Key=0x20 } } }, new() { Type=1, Data=new() { Keyboard=new() { Key=0x20, Flags=2 } } }];
+        Native.INPUT[] inputs = [new() { Type=1, Data=new() { Keyboard=new() { Key=key } } }, new() { Type=1, Data=new() { Keyboard=new() { Key=key, Flags=2 } } }];
         if(Native.SendInput(2,inputs,Marshal.SizeOf<Native.INPUT>())!=2) throw new InvalidOperationException("Fixture input failed");
     }
     public static int Run(string[] args)
@@ -71,6 +72,11 @@ internal static class WindowsSelfTest
                 editor.Text="teh"; editor.Focus(); editor.Select(editor.Text.Length,0);
                 await Task.Delay(150); SendFixtureSpace(); await Task.Delay(500);
                 Check(editor.Text=="teh ","Pause prevents correction");
+                service.Configure(new Settings { UseAi=false });
+                service.Configure(new Settings { UseAi=false, IdleDelayMs=300 });
+                editor.Text="teh"; editor.Focus(); editor.Select(editor.Text.Length,0);
+                await Task.Delay(100); SendFixtureSpace(); SendFixtureKey(0x25); await Task.Delay(600);
+                Check(editor.Text=="teh ","Cursor navigation cancels pending correction");
                 service.Configure(new Settings { UseAi=false });
                 string longPrefix=new string('a',500)+" ";
                 editor.Text=longPrefix+"teh"; editor.Focus(); editor.Select(editor.Text.Length,0);

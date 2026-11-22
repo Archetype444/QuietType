@@ -6,7 +6,7 @@ internal sealed class SettingsForm : Form
     private readonly Settings original;
     private readonly Action<Settings> apply;
     private readonly CheckBox enabled = Check("Enable autocorrect"), ai = Check("Use the bundled local AI for context"), realWords = Check("Also correct real-word mix-ups (experimental)"), startup = Check("Start quietly when I sign in to Windows");
-    private readonly NumericUpDown delay = new() { Minimum = 150, Maximum = 1500, Increment = 50, Width = 100 };
+    private readonly NumericUpDown delay = new() { Minimum = 50, Maximum = 1500, Increment = 50, Width = 100 };
     private readonly TextBox excluded = Editor(), words = Editor();
     private readonly Label live = new() { AutoSize = true, ForeColor = Color.FromArgb(42, 116, 93), MaximumSize = new Size(670, 0) };
     private static readonly Color Ink = Color.FromArgb(31, 44, 47), Muted = Color.FromArgb(91, 104, 106), Paper = Color.FromArgb(247, 249, 247);

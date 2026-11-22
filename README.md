@@ -32,6 +32,7 @@ The built-in typing test in Settings is an easy way to try `teh ` and other typo
 - Below-normal process and worker priority; Windows execution-speed efficiency mode.
 - Obvious spelling mistakes use the dictionary and do not run the neural model.
 - A maximum of one new AI check per 1.2 seconds; no backlog of checks while you type.
+- Event-driven wakeups rather than constant accessibility polling; the default pause is 60 ms.
 - Bounded nearby context: up to 384 characters before and 128 after the caret, at most 95 model tokens.
 - Model unloads after three minutes without AI use, and immediately when pausing or disabling AI.
 

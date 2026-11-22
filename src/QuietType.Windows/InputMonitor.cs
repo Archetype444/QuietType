@@ -7,6 +7,7 @@ internal sealed class InputMonitor : IDisposable
     private readonly Native.HookProc keyboardProc, mouseProc;
     private readonly nint keyboard, mouse;
     private long revision, lastInput, boundaryRevision;
+    public AutoResetEvent Activity { get; } = new(false);
     public long Revision => Interlocked.Read(ref revision);
     public long LastInput => Interlocked.Read(ref lastInput);
     public long BoundaryRevision => Interlocked.Read(ref boundaryRevision);
@@ -23,6 +24,7 @@ internal sealed class InputMonitor : IDisposable
         Interlocked.Increment(ref revision);
         Interlocked.Exchange(ref lastInput, Environment.TickCount64);
         Interlocked.Exchange(ref boundaryRevision, 0);
+        Activity.Set();
     }
     private nint OnKeyboard(int code, nint message, nint data)
     {
@@ -34,8 +36,11 @@ internal sealed class InputMonitor : IDisposable
             {
                 var current = Interlocked.Increment(ref revision);
                 Interlocked.Exchange(ref lastInput, Environment.TickCount64);
+                if (message is 0x100 or 0x104 && (Native.ModifierDown || key.Key is 0x08 or 0x09 or 0x0D or 0x11 or 0x12 or 0x1B or >= 0x21 and <= 0x28 or 0x2D or 0x2E or 0x5B or 0x5C))
+                    Interlocked.Exchange(ref boundaryRevision, 0);
                 if (message == 0x100 && !Native.ModifierDown && key.Key is 0x20 or 0xBA or 0xBC or 0xBE or 0xBF)
                     Interlocked.Exchange(ref boundaryRevision, current);
+                Activity.Set();
             }
         }
         return Native.CallNextHookEx(keyboard, code, message, data);
@@ -46,7 +51,7 @@ internal sealed class InputMonitor : IDisposable
         if (code >= 0 && message is 0x201 or 0x204 or 0x207 or 0x20A or 0x20E) Invalidate();
         return Native.CallNextHookEx(mouse, code, message, data);
     }
-    public void Dispose() { if (keyboard != 0) Native.UnhookWindowsHookEx(keyboard); if (mouse != 0) Native.UnhookWindowsHookEx(mouse); }
+    public void Dispose() { if (keyboard != 0) Native.UnhookWindowsHookEx(keyboard); if (mouse != 0) Native.UnhookWindowsHookEx(mouse); Activity.Dispose(); }
 }
 
 internal sealed class Hotkeys : NativeWindow, IDisposable
