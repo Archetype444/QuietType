@@ -60,11 +60,26 @@ jobs:
           if (-not (Test-Path "$destination/assets/model/model.onnx")) { throw 'Bundled model missing' }
           $app = Start-Process "$destination/QuietType.exe" -ArgumentList '--self-test', 'artifacts/installed-self-test.json' -Wait -PassThru
           if ($app.ExitCode -ne 0) { Get-Content artifacts/installed-self-test.json; throw 'Installed app tests failed' }
+          $normal = Start-Process "$destination/QuietType.exe" -ArgumentList '--background' -PassThru
+          Start-Sleep -Seconds 2
+          $normal.Refresh()
+          if ($normal.HasExited) { throw 'Tray application exited during first launch' }
+          $duplicate = Start-Process "$destination/QuietType.exe" -ArgumentList '--background' -Wait -PassThru
+          if ($duplicate.ExitCode -ne 0) { throw 'Single-instance launch failed' }
+          Stop-Process -Id $normal.Id -Force
+          $normal.WaitForExit()
+          $background = Start-Process "$destination/QuietType.exe" -ArgumentList '--background' -PassThru
+          Start-Sleep -Seconds 2
+          $background.Refresh()
+          if ($background.HasExited -or $background.MainWindowHandle -ne [IntPtr]::Zero) { throw 'Subsequent launch did not stay quietly in the tray' }
+          Stop-Process -Id $background.Id -Force
+          $background.WaitForExit()
           $uninstall = Start-Process "$destination/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
           if ($uninstall.ExitCode -ne 0 -or (Test-Path "$destination/QuietType.exe")) { throw 'Uninstall failed' }
           $startupKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\Microsoft\Windows\CurrentVersion\Run')
           try { if ($null -ne $startupKey -and $null -ne $startupKey.GetValue('QuietType')) { throw 'Startup entry left after uninstall' } }
           finally { if ($null -ne $startupKey) { $startupKey.Dispose() } }
+          @{ passed=4; checks=@('Installed tray application starts','Duplicate launch exits cleanly','Subsequent startup has no visible window','Uninstaller removes app and startup entry'); errors=@() } | ConvertTo-Json | Set-Content artifacts/installation-self-test.json
       - name: Package portable copy and checksums
         shell: pwsh
         run: |
@@ -95,5 +110,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create v1.0.0 artifacts/QuietType-1.0.0-Setup-x64.exe artifacts/QuietType-1.0.0-Portable-x64.zip artifacts/SHA256SUMS.txt artifacts/windows-self-test.json artifacts/installed-self-test.json --target $env:GITHUB_SHA --title 'QuietType 1.0.0' --notes-file docs/RELEASE-NOTES.md --latest
+          gh release create v1.0.0 artifacts/QuietType-1.0.0-Setup-x64.exe artifacts/QuietType-1.0.0-Portable-x64.zip artifacts/SHA256SUMS.txt artifacts/windows-self-test.json artifacts/installed-self-test.json artifacts/installation-self-test.json --target $env:GITHUB_SHA --title 'QuietType 1.0.0' --notes-file docs/RELEASE-NOTES.md --latest
           if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
