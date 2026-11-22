@@ -9,7 +9,7 @@ internal sealed class CorrectionService : IDisposable
     private readonly CancellationTokenSource stop = new();
     private readonly Thread thread;
     private volatile bool undoRequested, restoreUndoWindow;
-    private volatile bool clearRequested;
+    private Settings? appliedSettings;
     private long lastHandled, lastInference, lastModelUse;
     private ContextModel? model;
     private bool modelFailed;
@@ -27,7 +27,7 @@ internal sealed class CorrectionService : IDisposable
         thread.SetApartmentState(ApartmentState.MTA);
         thread.Start();
     }
-    public void Configure(Settings next) { Volatile.Write(ref settings, next); input.Invalidate(); clearRequested = true; }
+    public void Configure(Settings next) { Volatile.Write(ref settings, next); input.Invalidate(); }
     public void Undo(bool restoreWindow) { restoreUndoWindow = restoreWindow; undoRequested = true; }
     private void SetStatus(string status) { if (Status == status) return; Status = status; StatusChanged?.Invoke(status); }
     private void Loop()
@@ -42,12 +42,12 @@ internal sealed class CorrectionService : IDisposable
                 stop.Token.WaitHandle.WaitOne(60);
                 if (stop.IsCancellationRequested) break;
                 var current = Volatile.Read(ref settings);
-                if (clearRequested)
+                if (!ReferenceEquals(current, appliedSettings))
                 {
-                    clearRequested = false; modelFailed = false;
+                    appliedSettings = current; modelFailed = false;
                     if (!current.Enabled || !current.UseAi) { model?.Dispose(); model = null; }
                     undo = null;
-                    SetStatus(current.Enabled ? "Ready · spelling only" : "Paused");
+                    SetStatus(!current.Enabled ? "Paused" : current.UseAi ? "Ready · offline" : "Ready · spelling only");
                 }
                 if (undo is not null && Environment.TickCount64 - undo.Created > 20000) undo = null;
                 if (undoRequested) { undoRequested = false; TryUndo(current); continue; }
@@ -77,14 +77,16 @@ internal sealed class CorrectionService : IDisposable
                             SetStatus("Ready · local AI");
                         }
                     }
-                    if (correction is null || revision != input.Revision || !Volatile.Read(ref settings).Enabled || clearRequested) continue;
+                    if (correction is null || revision != input.Revision || !ReferenceEquals(current, Volatile.Read(ref settings))) continue;
                     var latest = TextAccess.Capture(current);
                     if (latest is null || revision != input.Revision || !TextAccess.SamePosition(snapshot, latest)) continue;
                     if (!TextRules.CanReplace(latest.Before, correction.Original, correction.Tail)) continue;
                     if (stop.IsCancellationRequested || Native.GetForegroundWindow() != snapshot.Window || revision != input.Revision) continue;
                     if (Native.ReplaceSuffix(correction.Original.Length + correction.Tail.Length, correction.Replacement + correction.Tail))
                     {
-                        undo = new(snapshot with { Before = snapshot.Before[..correction.Start] + correction.Replacement + correction.Tail }, correction.Original, correction.Replacement, correction.Tail, Environment.TickCount64);
+                        var expectedBefore = snapshot.Before[..correction.Start] + correction.Replacement + correction.Tail;
+                        expectedBefore = TextRules.BoundedTail(expectedBefore, 384);
+                        undo = new(snapshot with { Before = expectedBefore }, correction.Original, correction.Replacement, correction.Tail, Environment.TickCount64);
                         Corrected?.Invoke();
                     }
                     else { undo = null; SetStatus("Input unavailable · skipped"); }
@@ -101,6 +103,7 @@ internal sealed class CorrectionService : IDisposable
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
         { SetStatus("Assets unavailable · reinstall QuietType"); }
+        catch (Exception) { SetStatus("Correction stopped · restart QuietType"); }
         finally { model?.Dispose(); model = null; undo = null; }
     }
     private void TryUndo(Settings current)
@@ -126,7 +129,7 @@ internal sealed class CorrectionService : IDisposable
                 Volatile.Write(ref settings, next);
             }
         }
-        catch (Exception e) when (e is InvalidOperationException or System.Runtime.InteropServices.COMException or System.ComponentModel.Win32Exception or ArgumentException) { }
+        catch (Exception e) when (e is System.Windows.Automation.ElementNotAvailableException or InvalidOperationException or System.Runtime.InteropServices.COMException or System.ComponentModel.Win32Exception or ArgumentException) { }
     }
     public void Dispose()
     {

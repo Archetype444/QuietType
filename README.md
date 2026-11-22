@@ -45,7 +45,7 @@ The keyboard hook records key codes only to detect word boundaries, shortcuts an
 
 Password fields, read-only/selected text, browser address bars, URLs, paths and code-like tokens are skipped. Common password managers, terminals, developer tools and remote-desktop apps are excluded by default. You can extend the list. Settings and explicitly entered personal words are the only app data saved, under `%LOCALAPPDATA%\QuietType`.
 
-Before editing, QuietType rechecks focus, process, field identity, context, caret position and physical input revision. Pending work is discarded when these change. It never sends Enter or Tab and never requests administrator privileges. Windows and other apps can independently handle text you type into them; QuietType cannot change their privacy policies.
+Before editing, QuietType rechecks focus, process, field identity, context, caret position and input revision. Pending work is discarded when these change. It never sends Enter or Tab and never requests administrator privileges. Windows and other apps can independently handle text you type into them; QuietType cannot change their privacy policies.
 
 ## Honest scope of version 1.0
 

@@ -42,7 +42,9 @@ internal static class TextAccess
         left.MoveEndpointByUnit(TextPatternRangeEndpoint.Start, TextUnit.Character, -384);
         var right = caret.Clone();
         right.MoveEndpointByUnit(TextPatternRangeEndpoint.End, TextUnit.Character, 128);
-        var before = left.GetText(384);
+        var rawBefore = left.GetText(-1);
+        if (rawBefore.Length > 1536) return null;
+        var before = TextRules.BoundedTail(rawBefore, 384);
         var after = right.GetText(128);
         // ASCII suffix editing only; preceding Unicode context remains read-only.
         return new(window, (int)processId, name, string.Join(".", element.GetRuntimeId()), before, after);

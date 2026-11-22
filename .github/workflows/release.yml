@@ -62,7 +62,9 @@ jobs:
           if ($app.ExitCode -ne 0) { Get-Content artifacts/installed-self-test.json; throw 'Installed app tests failed' }
           $uninstall = Start-Process "$destination/unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
           if ($uninstall.ExitCode -ne 0 -or (Test-Path "$destination/QuietType.exe")) { throw 'Uninstall failed' }
-          if (Get-ItemPropertyValue 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' QuietType -ErrorAction SilentlyContinue) { throw 'Startup entry left after uninstall' }
+          $startupKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Software\Microsoft\Windows\CurrentVersion\Run')
+          try { if ($null -ne $startupKey -and $null -ne $startupKey.GetValue('QuietType')) { throw 'Startup entry left after uninstall' } }
+          finally { if ($null -ne $startupKey) { $startupKey.Dispose() } }
       - name: Package portable copy and checksums
         shell: pwsh
         run: |
@@ -70,6 +72,13 @@ jobs:
           $files = @('artifacts/QuietType-1.0.0-Setup-x64.exe', 'artifacts/QuietType-1.0.0-Portable-x64.zip')
           $lines = $files | ForEach-Object { $h = Get-FileHash $_ -Algorithm SHA256; "$($h.Hash.ToLowerInvariant())  $(Split-Path $_ -Leaf)" }
           $lines | Set-Content artifacts/SHA256SUMS.txt -Encoding ascii
+      - name: Preserve Windows test reports and settings preview
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: QuietType-Windows-test-reports
+          path: artifacts/*self-test.*
+          if-no-files-found: warn
       - name: Preserve release files and test evidence
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:

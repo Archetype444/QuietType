@@ -19,6 +19,7 @@ Equal(", ",TextRules.FindTarget("Some speling, ")!.Tail,"Tail preservation");
 Check(TextRules.CanReplace("word speling ","speling"," "),"Valid suffix");
 Check(!TextRules.CanReplace("word speling later ","speling"," "),"Stale suffix refused");
 Check(!TextRules.CanReplace("speling\n","speling","\n"),"Newline refused");
+Equal("abcd",TextRules.BoundedTail("💬abcd",5),"Unicode context is not split");
 var settings = new Settings();
 var engine = new CorrectionEngine(lexicon);
 Equal("answer",engine.Suggest("Please asnwer ","",settings,null)?.Replacement,"Common typo");
@@ -37,7 +38,7 @@ using(var model = new ContextModel(Path.Combine(root,"assets/model")))
  var score=model.Score("I drink a cup of "," every morning.",["coffee","car","window"]);
  Check(score["coffee"].Logit>score["car"].Logit,"Neural context inference");
  Console.WriteLine($"Neural inference: {model.LastInferenceMs:F1} ms (two CPU threads)");
- foreach(var (text,expected) in new[]{("Please check my speling ","spelling"),("Please fix this sentnce ","sentence"),("I like drinkng ","drinking")})
+ foreach(var (text,expected) in new[]{("Please check my speling ","spelling"),("Please fix this sentnce ","sentence"),("I like drinkng ","drinking"),("I am tytpingh ","typing"),("It is completelyt ","completely"),("I want whgatever ","whatever"),("It should not be intrusiuve ","intrusive"),("Thank yhou ","you")})
  {
   var w=TextRules.FindTarget(text)!;
   var correction=engine.Suggest(text,"",settings,model);

@@ -29,8 +29,8 @@ internal sealed class InputMonitor : IDisposable
         if (code >= 0)
         {
             var key = Marshal.PtrToStructure<Native.KBD>(data);
-            // Ignore injected input from ourselves and other automation.
-            if ((key.Flags & 0x10) == 0)
+            // Ignore only our own correction batches; other input invalidates pending work.
+            if (key.Extra != Native.InputTag)
             {
                 var current = Interlocked.Increment(ref revision);
                 Interlocked.Exchange(ref lastInput, Environment.TickCount64);

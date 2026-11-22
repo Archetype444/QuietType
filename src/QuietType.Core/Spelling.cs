@@ -99,6 +99,12 @@ public static partial class TextRules
         if (fragment.IndexOfAny(['@', '/', '\\', '_', '=', '`', '{', '}', '<', '>']) >= 0) return null;
         return new(word, match.Index, tail);
     }
+    public static string BoundedTail(string value, int maximum)
+    {
+        int start = Math.Max(0, value.Length - maximum);
+        if (start > 0 && char.IsLowSurrogate(value[start]) && char.IsHighSurrogate(value[start - 1])) start++;
+        return value[start..];
+    }
     public static string PreserveCase(string original, string replacement) => char.IsUpper(original[0]) ? char.ToUpperInvariant(replacement[0]) + replacement[1..] : replacement;
     public static bool CanReplace(string before, string original, string tail) =>
         original.Length is >= 1 and <= 24 && tail.Length <= 8 && original.All(char.IsAsciiLetter) &&
